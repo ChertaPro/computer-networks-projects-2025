@@ -1,13 +1,13 @@
-import socket, struct, os, hashlib
+import socket, struct, os, hashlib, time
 
 ETH_P_LINKCHAT = 0x88B5
 MSG_FILE = 1
-CHUNK_SIZE = 1200
+CHUNK_SIZE = 1460
 RECV_BUF = 65535
 
 RAMITO_MAC = b'\x10\xf6\x0a\x27\x1a\x32'
 JOSMITO_MAC = b'\xac\x74\xb1\x84\xa2\xba'
-FILE = "1.jpg"
+FILE = "Eiffel Tower.zip"
 
 def md5sum(path):
     h = hashlib.md5()
@@ -21,7 +21,7 @@ class LinkChat:
         self.sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETH_P_LINKCHAT))
         self.sock.bind((iface, 0))
         self.src_mac = src_mac
-        self.pending = {}  # filehash_hex -> {'path', 'chunks'(set), 'name'(opt), 'size'(opt), 'hash'(bytes)}
+        self.pending = {}  # filehash_hex -> {'path','chunks'(set),'name','size','hash'(bytes)}
         print(f"[+] iface {iface} listo")
 
     def send_frame(self, dst, t, payload):
@@ -36,10 +36,27 @@ class LinkChat:
         return dict(src=s, type=t, payload=f[17:17+l])
 
     def _meta_pack(self, name, size, h):
-        n = name.encode(); fmt = f"!B{len(n)}sQ16s"; return struct.pack(fmt, len(n), n, size, h)
+        n = name.encode('utf-8'); fmt = f"!B{len(n)}sQ16s"
+        return struct.pack(fmt, len(n), n, size, h)
+
     def _meta_unpack(self, p):
-        n = p[0]; fmt = f"!B{n}sQ16s"; sz = struct.calcsize(fmt)
-        _, name, size, h = struct.unpack(fmt, p[:sz]); return {"name": name.decode(), "size": size, "hash": h}, sz
+        # Return (metadata_dict, struct_size) or raise ValueError if not enough bytes
+        if len(p) < 1:
+            raise ValueError("payload vacío")
+        n = p[0]
+        if n == 0 or n > 255:
+            raise ValueError("name_len inválido")
+        fmt = f"!B{n}sQ16s"
+        sz = struct.calcsize(fmt)
+        if len(p) < sz:
+            raise ValueError("payload demasiado corto para metadata")
+        # Unpack and ensure name decodes as UTF-8; if it doesn't, treat as chunk upstream
+        _, name, size, h = struct.unpack(fmt, p[:sz])
+        try:
+            name_s = name.decode('utf-8')
+        except UnicodeDecodeError:
+            raise ValueError("nombre no UTF-8 -> probablemente no es metadata")
+        return {"name": name_s, "size": size, "hash": h}, sz
 
     def send_file(self, dst, path):
         name, size = os.path.basename(path), os.path.getsize(path)
@@ -53,8 +70,10 @@ class LinkChat:
             self.send_frame(dst, MSG_FILE, meta)
             i = 0
             while (c := f.read(CHUNK_SIZE)):
-                self.send_frame(dst, MSG_FILE, h + struct.pack("!H", i) + c)
+                # index as 4 bytes unsigned
+                self.send_frame(dst, MSG_FILE, h + struct.pack("!I", i) + c)
                 i += 1
+                time.sleep(0.001)  # evita saturar buffers
             print(f"[+] enviado {name} en {i} chunks")
 
     def recv_loop(self):
@@ -64,17 +83,25 @@ class LinkChat:
             frm = self.recv_frame()
             if not frm or frm["type"] != MSG_FILE: continue
             p = frm["payload"]
-            # intentar interpretar como metadata (si falla -> es chunk)
+
+            # Intentamos interpretar metadata sólo si hay suficientes bytes para leer name_len + rest
+            is_meta = False
             try:
                 meta, off = self._meta_unpack(p)
+                is_meta = True
+            except Exception:
+                is_meta = False
+
+            if is_meta:
                 rest = p[off:]
                 hhex = meta["hash"].hex()
                 tmp = os.path.join("downloads/tmp", f"{hhex}.part")
-                # si vienen datos (archivo pequeño en la misma trama)
+                # archivo pequeño enviado en la misma trama
                 if rest:
                     os.makedirs("downloads", exist_ok=True)
                     final = os.path.join("downloads", meta["name"])
-                    with open(final, "wb") as o: o.write(rest)
+                    with open(final, "wb") as o:
+                        o.write(rest)
                     if hashlib.md5(rest).digest() == meta["hash"]:
                         print(f"[+] recibido {meta['name']} ({meta['size']}B)")
                     else:
@@ -83,18 +110,19 @@ class LinkChat:
                 # metadata sola -> preparar .part (truncate al tamaño)
                 with open(tmp, "wb") as t: t.truncate(meta["size"])
                 self.pending[hhex] = {"path": tmp, "chunks": set(), "name": meta["name"], "size": meta["size"], "hash": meta["hash"]}
-                # si ya estaban chunks escritos antes (rarísimo), comprobamos completitud
                 total = (meta["size"] + CHUNK_SIZE - 1)//CHUNK_SIZE
                 if len(self.pending[hhex]["chunks"]) >= total:
                     self._try_finalize(hhex)
                 print(f"[+] preparado para recibir {meta['name']} ({meta['size']}B)")
-            except Exception:
-                # tratar como chunk: [16B hash][2B idx][data...]
-                if len(p) < 18: continue
-                h = p[:16]; idx = struct.unpack("!H", p[16:18])[0]; data = p[18:]
+            else:
+                # tratar como chunk: [16B hash][4B idx][data...]
+                if len(p) < 21:  # 16 + 4 + at least 1 byte data
+                    continue
+                h = p[:16]
+                idx = struct.unpack("!I", p[16:20])[0]
+                data = p[20:]
                 hhex = h.hex()
                 tmp = os.path.join("downloads/tmp", f"{hhex}.part")
-                # escribir en offset (crear si no existe)
                 os.makedirs("downloads/tmp", exist_ok=True)
                 mode = "r+b" if os.path.exists(tmp) else "w+b"
                 with open(tmp, mode) as t:
@@ -106,7 +134,6 @@ class LinkChat:
                     self.pending[hhex] = {"path": tmp, "chunks": {idx}, "name": None, "size": None, "hash": h}
                 else:
                     ent["chunks"].add(idx)
-                    # si conocemos size -> verificar completitud
                     if ent.get("size"):
                         total = (ent["size"] + CHUNK_SIZE - 1)//CHUNK_SIZE
                         if len(ent["chunks"]) >= total:
@@ -115,7 +142,6 @@ class LinkChat:
     def _try_finalize(self, hhex):
         ent = self.pending.get(hhex)
         if not ent or not ent.get("name") or not ent.get("size"): return
-        # verificar md5 del .part
         cur = hashlib.md5()
         with open(ent["path"], "rb") as f:
             for b in iter(lambda: f.read(8192), b''):
@@ -129,16 +155,10 @@ class LinkChat:
 
 if __name__ == "__main__":
     iface = "wlp0s20f3"
-    dst = RAMITO_MAC
+    dst = JOSMITO_MAC
     src = JOSMITO_MAC
     chat = LinkChat(iface, src)
+    file = FILE
 
-    # crear prueba si no existe
-    test = FILE
-    if not os.path.exists(test):
-        with open(test, "w") as f:
-            f.write("prueba grande\n" * 2000)
-
-    # enviar y (opcional) escuchar
-    chat.send_file(dst, test)
+    chat.send_file(dst, file)
     # chat.recv_loop()
