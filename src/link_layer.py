@@ -17,6 +17,7 @@ MAX_PAYLOAD_SIZE = 1400     # tamaño máximo de datos por trama Ethernet (~1500
 IFACE_DEFAULT = "wlp0s20f3" # interfaz por defecto
 
 iface = os.environ.get("LINKCHAT_IFACE", IFACE_DEFAULT)
+
 # ===============================
 #  CLASE PRINCIPAL: LinkChatInterface
 # ===============================
@@ -103,6 +104,43 @@ class LinkChatInterface:
                     "length": len(full_message)
                 }
 
+    def start_receiving(self, callback):
+        """Arranca un hilo que invoca callback(frame_dict) por cada mensaje recibido."""
+        def _loop():
+            while True:
+                try:
+                    frame = self.receive_frame()
+                    if frame and callable(callback):
+                        try:
+                            callback(frame)
+                        except Exception:
+                            pass
+                except Exception:
+                    # evitar terminar el hilo por errores puntuales
+                    pass
+        threading.Thread(target=_loop, daemon=True).start()
+        print("[*] Receptor Link-Chat iniciado en background")
+
+    def send_message(self, dst_mac, message, message_type=1):
+        """Conveniencia: dst_mac puede ser str ('ff:...') o bytes; message str o bytes."""
+        if isinstance(message, str):
+            payload = message.encode()
+        else:
+            payload = bytes(message)
+        if isinstance(dst_mac, str):
+            dst = self._parse_mac_str(dst_mac)
+        elif isinstance(dst_mac, (bytes, bytearray)):
+            dst = bytes(dst_mac)
+        else:
+            raise ValueError("dst_mac debe ser str o bytes")
+        self.send_frame(dst, message_type=message_type, payload=payload)
+
+    @staticmethod
+    def _parse_mac_str(mac_str):
+        """Convierte una dirección MAC en formato string ('ff:ff:ff:ff:ff:ff') a bytes."""
+        return bytes(int(b, 16) for b in mac_str.split(":"))
+    
+'''
 # ===============================
 #  FUNCIÓN PRINCIPAL (MODO INTERACTIVO)
 # ===============================
@@ -149,3 +187,4 @@ def main():
 # ===============================
 if __name__ == "__main__":
     main()
+'''
