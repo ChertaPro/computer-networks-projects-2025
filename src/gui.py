@@ -223,7 +223,13 @@ class ChatFrame(ctk.CTkFrame):
 
         self.entry = ctk.CTkEntry(bottom_frame, placeholder_text="Escribe aquí...", font=ctk.CTkFont(size=14),
                                   height=44)
+        self.entry.bind("<Return>", lambda event: self.send_message())
+
         self.entry.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+
+        self.clear_button = ctk.CTkButton(bottom_frame, text="Limpiar chat", width=120, height=44,
+                                  command=self.clear_chat, font=ctk.CTkFont(size=14))
+        self.clear_button.grid(row=0, column=3, padx=(5,5), pady=5)
 
         self.attach_button = ctk.CTkButton(bottom_frame, text="📎", width=64, height=44, command=self.attach_file,
                                            font=ctk.CTkFont(size=14))
@@ -232,6 +238,11 @@ class ChatFrame(ctk.CTkFrame):
         self.send_button = ctk.CTkButton(bottom_frame, text="Enviar", width=160, height=44, command=self.send_message,
                                          font=ctk.CTkFont(size=14, weight="bold"))
         self.send_button.grid(row=0, column=2, padx=(2, 5), pady=5)
+
+    def clear_chat(self):
+        self.text_area.configure(state="normal")
+        self.text_area.delete("1.0", "end")
+        self.text_area.configure(state="disabled")
 
     def abrir_ventana_adjuntar(self):
         files_folders_iface = getattr(self.master, "files_folders_iface", None)

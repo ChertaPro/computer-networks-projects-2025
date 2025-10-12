@@ -171,8 +171,6 @@ class LinkChat:
                         print(f"[+] recibido {meta['name']} ({meta['size']}B)")
                         # Si es zip, descomprimir y limpiar
                         try_unzip_and_cleanup(final)
-                    else:
-                        print("[-] hash no coincide (pequeño)")
                     continue
                 # metadata sola -> preparar .part (truncate al tamaño)
                 with open(tmp, "wb") as t: t.truncate(meta["size"])
