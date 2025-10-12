@@ -249,7 +249,8 @@ class ChatFrame(ctk.CTkFrame):
 
         ventana = ctk.CTkToplevel(self)
         ventana.title("Adjuntar archivo o carpeta")
-        ventana.geometry("520x260")
+        # Ventana agrandada (antes "520x260")
+        ventana.geometry("720x380")
         ventana.transient(self.master)
         ventana.grid_columnconfigure(0, weight=1)
         ventana.grid_rowconfigure(0, weight=1)
@@ -260,8 +261,9 @@ class ChatFrame(ctk.CTkFrame):
 
         ventana.after(10, ventana.grab_set)
 
+        # Ajustados wraplength para usar el ancho mayor
         ruta_label = ctk.CTkLabel(main_frame, text="Ningún archivo o carpeta seleccionado", anchor="center",
-                                font=ctk.CTkFont(size=13), wraplength=480)
+                                font=ctk.CTkFont(size=13), wraplength=680)
         ruta_label.grid(row=0, column=0, sticky="nsew", pady=(0, 12))
 
         archivo_path = {"path": None}
@@ -287,7 +289,7 @@ class ChatFrame(ctk.CTkFrame):
         btn_carpeta.grid(row=2, column=0, sticky="ew", pady=(0, 8))
 
         ayuda_label = ctk.CTkLabel(main_frame, text="Selecciona un archivo o carpeta para enviar.",
-                                font=ctk.CTkFont(size=12), wraplength=480, anchor="w", justify="left")
+                                font=ctk.CTkFont(size=12), wraplength=680, anchor="w", justify="left")
         ayuda_label.grid(row=3, column=0, sticky="ew", pady=(6, 10))
 
         # ------------------- Función de envío -------------------

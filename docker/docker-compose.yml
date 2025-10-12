@@ -1,0 +1,35 @@
+services:
+  node1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: linkchat_node1
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    networks:
+      linkchat_net:
+        ipv4_address: 172.28.0.2
+
+  node2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: linkchat_node2
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    networks:
+      linkchat_net:
+        ipv4_address: 172.28.0.3
+
+networks:
+  linkchat_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

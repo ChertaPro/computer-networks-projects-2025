@@ -1,0 +1,3 @@
+cd docker
+xhost +local:docker
+sudo docker compose up --build
