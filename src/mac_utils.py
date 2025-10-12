@@ -1,6 +1,3 @@
-# ===============================
-#  FUNCIÓN MAC PC
-# ===============================
 def mac_from_sysfs(iface):
     path = f"/sys/class/net/{iface}/address"
     try:

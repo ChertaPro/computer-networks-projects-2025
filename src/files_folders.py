@@ -27,7 +27,6 @@ def prepare_zip(path):
             for root, dirs, files in os.walk(path):
                 for file in files:
                     abs_path = os.path.join(root, file)
-                    # arcname relativo a path.parent para mantener carpeta dentro del zip
                     rel_path = os.path.relpath(abs_path, os.path.join(path, ".."))
                     zf.write(abs_path, arcname=rel_path)
     else:

@@ -6,21 +6,11 @@ import math
 import threading
 import os
 
-
-
-# ===============================
-#  CONFIGURACIÓN GENERAL
-# ===============================
-
 ETH_P_LINKCHAT = 0x88B5     # EtherType reservado para Link-Chat (no estándar)
 MAX_PAYLOAD_SIZE = 1400     # tamaño máximo de datos por trama Ethernet (~1500B)
 IFACE_DEFAULT = "wlp0s20f3" # interfaz por defecto
 
 iface = os.environ.get("LINKCHAT_IFACE", IFACE_DEFAULT)
-
-# ===============================
-#  CLASE PRINCIPAL: LinkChatInterface
-# ===============================
 
 import security
 
@@ -40,9 +30,6 @@ class LinkChatInterface:
     def stop(self):
         self.running = False
 
-    # ---------------------------------
-    #  Envío de mensajes (con fragmentación)
-    # ---------------------------------
     def send_frame(self, dst_mac: bytes, message_type: int, payload: bytes):
         # Cifrar el payload con la clave pública del destinatario si está disponible
         pubkey = self.public_keys.get(dst_mac)
@@ -71,9 +58,6 @@ class LinkChatInterface:
 
         print(f"[+] Mensaje enviado ({len(payload)} bytes en {total_fragments} fragmentos) ✅")
 
-    # ---------------------------------
-    #  Recepción de mensajes (reensamblado)
-    # ---------------------------------
     def receive_frame(self):
         """Recibe tramas y reconstruye mensajes largos (según MAC origen)."""
         reassembly_buffer = {}
@@ -163,52 +147,3 @@ class LinkChatInterface:
     def _parse_mac_str(mac_str):
         """Convierte una dirección MAC en formato string ('ff:ff:ff:ff:ff:ff') a bytes."""
         return bytes(int(b, 16) for b in mac_str.split(":"))
-    
-'''
-# ===============================
-#  FUNCIÓN PRINCIPAL (MODO INTERACTIVO)
-# ===============================
-
-def main():
-    iface = IFACE_DEFAULT
-
-    sender_mac = bytes.fromhex("ac74b184a2ba")   # MAC del emisor (ajusta según tu equipo)
-    receiver_mac = bytes.fromhex("10f60a271a32") # MAC destino o ff:ff:ff:ff:ff:ff para broadcast
-
-    lc = LinkChatInterface(iface, sender_mac)
-
-    # Función para recibir mensajes en un hilo aparte
-    def recv_loop():
-        print("[*] Escuchando mensajes Link-Chat...\n")
-        while True:
-            frame = lc.receive_frame()
-            if frame:
-                print("\n" + "-" * 60)
-                print(f"[+] Mensaje recibido de {frame['src_mac'].hex(':')}")
-                print(f"Tipo: {frame['msg_type']}  |  Longitud: {frame['length']} bytes")
-                print("Contenido:", frame["payload"].decode(errors='ignore'))
-                texto = frame["payload"].decode(errors='ignore')
-                with open("nuevo_archivo.txt", "w", encoding="utf-8") as f:
-                    f.write(texto)
-                print("-" * 60)
-                print("Escribe tu mensaje: ", end="", flush=True)
-    # Lanzar el hilo de recepción
-    threading.Thread(target=recv_loop, daemon=True).start()
-
-    # Bucle principal de envío
-    while True:
-        try:
-            msg = input("Escribe tu mensaje: ").strip()
-            if not msg:
-                continue
-            lc.send_frame(receiver_mac, message_type=1, payload=msg.encode())
-        except KeyboardInterrupt:
-            print("\n[!] Saliendo del programa...")
-            break
-
-# ===============================
-#  EJECUCIÓN
-# ===============================
-if __name__ == "__main__":
-    main()
-'''

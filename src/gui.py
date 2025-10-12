@@ -12,12 +12,10 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 
-# Hacemos que la app herede de TkinterDnD.Tk (no mezclar con ctk.CTk en la herencia)
 class LinkChatApp(ctk.CTk):
     def __init__(self):
-        super().__init__()  # inicializa ctk.CTk correctamente
+        super().__init__()  
 
-        # --- importante: hacer que el contenido principal llene todo el root ---
         self.title("Link-Chat")
         self.geometry("1100x700")
         self.minsize(800, 500)
@@ -67,9 +65,6 @@ class LinkChatApp(ctk.CTk):
         self.show_frame(self.devices_frame)
 
 
-# ----------------------------
-# StartFrame (sin cambios funcionales significativos)
-# ----------------------------
 class StartFrame(ctk.CTkFrame):
     def __init__(self, master, start_callback):
         super().__init__(master)
@@ -96,9 +91,6 @@ class StartFrame(ctk.CTkFrame):
         exit_button.grid(row=3, column=0)
 
 
-# ----------------------------
-# DevicesFrame (pequeños cambios)
-# ----------------------------
 class DevicesFrame(ctk.CTkFrame):
     def __init__(self, master, chat_callback, go_back_callback):
         super().__init__(master)
@@ -205,9 +197,6 @@ class DevicesFrame(ctk.CTkFrame):
             messagebox.showerror("Broadcast", f"Error al enviar broadcast: {e}")
 
 
-# ----------------------------
-# ChatFrame (modificaciones: usar tk.Label para DnD)
-# ----------------------------
 class ChatFrame(ctk.CTkFrame):
     def __init__(self, master, go_back_callback):
         super().__init__(master)

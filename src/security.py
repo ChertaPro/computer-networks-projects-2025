@@ -6,11 +6,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding as sym_padding
 import base64
 
-# ===============================
-#  Gestión de claves
-# ===============================
-
-
 def generate_keys_if_needed(priv_path="private_key.pem", pub_path="public_key.pem"):
     if not os.path.exists(priv_path) or not os.path.exists(pub_path):
         private_key = rsa.generate_private_key(
@@ -56,10 +51,6 @@ def serialize_public_key(public_key):
 def deserialize_public_key(data):
     return serialization.load_pem_public_key(data, backend=default_backend())
 
-# ===============================
-#  Cifrado/descifrado asimétrico (RSA)
-# ===============================
-
 def encrypt_with_public_key(data: bytes, public_key):
     return public_key.encrypt(
         data,
@@ -79,10 +70,6 @@ def decrypt_with_private_key(ciphertext: bytes, private_key):
             label=None
         )
     )
-
-# ===============================
-#  Cifrado/descifrado híbrido (RSA + AES)
-# ===============================
 
 def encrypt_large_data(data: bytes, public_key):
     # Generar clave AES aleatoria

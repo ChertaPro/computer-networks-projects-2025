@@ -37,18 +37,6 @@ def main():
         print(f"[!] No se pudo inicializar LinkChat {e}")
         link_iface = None
 
-    # Ejemplo: poblar diccionario de claves públicas desde discovery
-    # Suponiendo que discovery.LinkDiscovery almacena claves públicas de otros nodos en ld.devices_public_keys
-    # y que las claves están serializadas en formato PEM
-    #
-    # for mac_str, pubkey_pem in getattr(ld, 'devices_public_keys', {}).items():
-    #     mac_bytes = bytes.fromhex(mac_str.replace(":", ""))
-    #     pubkey = security.deserialize_public_key(pubkey_pem)
-    #     if link_iface:
-    #         link_iface.public_keys[mac_bytes] = pubkey
-    #     if files_folders_iface:
-    #         files_folders_iface.public_keys[mac_bytes] = pubkey
-
     # Iniciar GUI
     app = gui.LinkChatApp()
 
