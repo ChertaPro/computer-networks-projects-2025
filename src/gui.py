@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import messagebox
 import tkinter.simpledialog as simpledialog
 from tkinter import filedialog
+import os
 
 # Configuración base de CustomTkinter
 ctk.set_appearance_mode("dark")
@@ -277,6 +278,10 @@ class ChatFrame(ctk.CTkFrame):
                 try:
                     if files_folders_iface and self.mac:
                         files_folders_iface.send_folder(self.mac, archivo_path["path"])
+                        nombre = os.path.basename(archivo_path["path"])
+                        self.text_area.configure(state="normal")
+                        self.text_area.insert("end", f"Tú: el archivo {nombre} fue enviado\n")
+                        self.text_area.configure(state="disabled")
                         ventana.destroy()
                     else:
                         messagebox.showwarning("Error", "Interfaz o destinatario no disponibles.", parent=ventana)
@@ -310,6 +315,7 @@ class ChatFrame(ctk.CTkFrame):
                 self.text_area.configure(state="normal")
                 self.text_area.insert("end", f"Tú: {msg}\n")
                 self.text_area.configure(state="disabled")
+                self.text_area.see("end")
                 self.entry.delete(0, "end")
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo enviar el mensaje: {e}")

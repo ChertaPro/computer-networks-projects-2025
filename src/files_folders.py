@@ -1,5 +1,5 @@
 import socket, struct, os, hashlib, time, threading
-import shutil, zipfile  # nuevos imports
+import zipfile
 
 ETH_P_LINKCHAT = 0x88B5
 MSG_FILE = 1
@@ -11,7 +11,7 @@ def md5sum(path):
     with open(path, 'rb') as f:
         for b in iter(lambda: f.read(8192), b''):
             h.update(b)
-    return h.digest()  # 16 bytes
+    return h.digest()
 
 def prepare_zip(path):
     os.makedirs("downloads/tmp", exist_ok=True)
@@ -19,12 +19,10 @@ def prepare_zip(path):
     base = os.path.basename(os.path.normpath(path))
     zip_dest = os.path.join("downloads/tmp", f"{base}.zip")
 
-    # eliminar zip previo si existía
     if os.path.exists(zip_dest):
         os.remove(zip_dest)
 
     if os.path.isdir(path):
-        # zip de carpeta: queremos que dentro del zip esté la carpeta entera
         with zipfile.ZipFile(zip_dest, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(path):
                 for file in files:
@@ -41,10 +39,6 @@ def prepare_zip(path):
 
 
 def try_unzip_and_cleanup(final_path):
-    """
-    Si final_path termina con .zip: extrae su contenido en downloads/
-    Luego elimina el zip final (el que quedó en downloads/) y elimina zips auxiliares en downloads/tmp.
-    """
     try:
         if not final_path.lower().endswith('.zip'):
             return
@@ -90,6 +84,9 @@ class LinkChat:
             return bytes.fromhex(mac)
         raise ValueError(f"Formato de MAC inválido: {mac}")
 
+    def set_receive_callback(self, callback):
+        # callback(nombre:str, tam_kb:float)
+        self._callback = callback
 
     def send_frame(self, dst, t, payload):
         self.sock.send(struct.pack("!6s6sH", dst, self.src_mac, ETH_P_LINKCHAT) + struct.pack("!BH", t, len(payload)) + payload)
@@ -226,7 +223,12 @@ class LinkChat:
                 print(f"[-] error al mover archivo reensamblado: {e}")
                 return
             print(f"[+] archivo reensamblado: {final}")
-            # Si es zip, descomprimir automáticamente y borrar zips auxiliares
+            # Invocar callback si existe
+            if hasattr(self, "_callback") and callable(self._callback):
+                nombre = os.path.basename(final)
+                tam_mb = os.path.getsize(final) / (1024 * 1024)
+                self._callback(nombre, tam_mb)  # enviamos nombre y tamaño
+            # Descomprimir zip si aplica
             try_unzip_and_cleanup(final)
             del self.pending[hhex]
         else:

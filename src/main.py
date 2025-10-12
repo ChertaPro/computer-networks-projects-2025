@@ -66,6 +66,7 @@ def main():
                         app.chat_frame.text_area.configure(state="normal")
                         app.chat_frame.text_area.insert("end", f"{src}: {text}\n")
                         app.chat_frame.text_area.configure(state="disabled")
+                        app.chat_frame.text_area.see("end")
                 except Exception:
                     pass
             # programar en hilo principal
@@ -75,7 +76,16 @@ def main():
                 pass
 
         link_iface.start_receiving(incoming_cb)
-        files_folders_iface.start_receiving_file(incoming_cb)
+        def file_received_callback(nombre):
+            # solo actualizar chat si estamos en esa ventana
+            if app.chat_frame.mac:  # no necesita MAC
+                app.chat_frame.text_area.configure(state="normal")
+                app.chat_frame.text_area.insert("end", f"{nombre} fue recibido\n")
+                app.chat_frame.text_area.configure(state="disabled")
+
+        files_folders_iface.set_receive_callback(file_received_callback)
+        files_folders_iface.start_receiving_file()
+
 
     # Flag para evitar múltiples hilos de actualización
     updater_started = {"v": False}
