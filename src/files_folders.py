@@ -2,7 +2,7 @@ import socket, struct, os, hashlib, time, threading
 import zipfile
 
 ETH_P_LINKCHAT = 0x88B5
-MSG_FILE = 1
+MSG_FILE = 10
 CHUNK_SIZE = 1460
 RECV_BUF = 65535
 

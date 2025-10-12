@@ -10,13 +10,38 @@ import base64
 #  Gestión de claves
 # ===============================
 
+
+def generate_keys_if_needed(priv_path="private_key.pem", pub_path="public_key.pem"):
+    if not os.path.exists(priv_path) or not os.path.exists(pub_path):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        # Guardar clave privada
+        with open(priv_path, "wb") as f:
+            f.write(private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption()
+            ))
+        # Guardar clave pública
+        public_key = private_key.public_key()
+        with open(pub_path, "wb") as f:
+            f.write(public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            ))
+
 def load_private_key(path="private_key.pem"):
+    generate_keys_if_needed(path, path.replace("private", "public"))
     with open(path, "rb") as key_file:
         return serialization.load_pem_private_key(
             key_file.read(), password=None, backend=default_backend()
         )
 
 def load_public_key(path="public_key.pem"):
+    generate_keys_if_needed(path.replace("public", "private"), path)
     with open(path, "rb") as key_file:
         return serialization.load_pem_public_key(
             key_file.read(), backend=default_backend()
