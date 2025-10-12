@@ -6,12 +6,6 @@ MSG_FILE = 1
 CHUNK_SIZE = 1460
 RECV_BUF = 65535
 
-# RAMITO_MAC = b'\x10\xf6\x0a\x27\x1a\x32'
-# JOSMITO_MAC = b'\xac\x74\xb1\x84\xa2\xba'
-
-# FILE = "/home/john314/Stuff"
-# FILE = "Stuff.zip"
-
 def md5sum(path):
     h = hashlib.md5()
     with open(path, 'rb') as f:

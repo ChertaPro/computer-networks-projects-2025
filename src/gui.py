@@ -268,8 +268,7 @@ class ChatFrame(ctk.CTkFrame):
                                         command=seleccionar, height=44, font=ctk.CTkFont(size=13))
         btn_seleccionar.grid(row=1, column=0, sticky="ew", pady=(0, 8))
 
-        ayuda_label = ctk.CTkLabel(main_frame, text="Selecciona un archivo o carpeta para enviar.\n"
-                                                    "Si seleccionas carpeta, se comprimirá automáticamente.",
+        ayuda_label = ctk.CTkLabel(main_frame, text="Selecciona un archivo o carpeta para enviar.\n",
                                 font=ctk.CTkFont(size=12), wraplength=480, anchor="w", justify="left")
         ayuda_label.grid(row=2, column=0, sticky="ew", pady=(6, 10))
 
