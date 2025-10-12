@@ -5,6 +5,7 @@ from tkinter import messagebox
 import tkinter.simpledialog as simpledialog
 from tkinter import filedialog
 import os
+import mac_memory
 
 # Configuración base de CustomTkinter
 ctk.set_appearance_mode("dark")
@@ -151,16 +152,31 @@ class DevicesFrame(ctk.CTkFrame):
             row_frame = ctk.CTkFrame(self.devices_list)
             row_frame.pack(fill="x", padx=5, pady=3)
 
-            label = ctk.CTkLabel(row_frame, text=mac, width=260, anchor="w", font=ctk.CTkFont(size=13))
+            # Mostrar nombre si existe, si no la MAC
+            name = mac_memory.get_name_for_mac(mac)
+            display = f"{name} ({mac})" if name else mac
+            label = ctk.CTkLabel(row_frame, text=display, width=260, anchor="w", font=ctk.CTkFont(size=13))
             label.pack(side="left", padx=5)
 
-            button = ctk.CTkButton(
-                row_frame, text="Chatear", width=140, height=44,
+            chat_button = ctk.CTkButton(
+                row_frame, text="Chatear", width=100, height=44,
                 command=lambda m=mac: self.select_device(m), font=ctk.CTkFont(size=13, weight="bold")
             )
-            button.pack(side="right", padx=5)
+            chat_button.pack(side="right", padx=5)
+
+            rename_button = ctk.CTkButton(
+                row_frame, text="Renombrar", width=100, height=44,
+                command=lambda m=mac: self.rename_mac(m), font=ctk.CTkFont(size=13)
+            )
+            rename_button.pack(side="right", padx=5)
 
             label.bind("<Button-1>", lambda e, m=mac: self.select_device(m))
+
+    def rename_mac(self, mac):
+        name = simpledialog.askstring("Renombrar dispositivo", f"Nuevo nombre para {mac}:")
+        if name:
+            mac_memory.set_name_for_mac(mac, name)
+            self.load_devices()
 
     def set_devices(self, devices):
         try:

@@ -58,7 +58,7 @@ class LinkDiscovery:
             if eth_type != ETH_P_LINKDISCOVERY:
                 continue
             payload = raw_frame[14:]
-            if b"LINKDISCOVERY:HELLO" in payload and src_mac != self.src_mac:
+            if b"LINKDISCOVERY:HELLO" in payload:# and src_mac != self.src_mac:
                 mac_str = src_mac.hex(":")
                 self.devices[mac_str] = time.time()
                 # print(f"[+] Dispositivo detectado: {mac_str}")
