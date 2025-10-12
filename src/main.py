@@ -76,12 +76,21 @@ def main():
                 pass
 
         link_iface.start_receiving(incoming_cb)
-        def file_received_callback(nombre):
-            # solo actualizar chat si estamos en esa ventana
-            if app.chat_frame.mac:  # no necesita MAC
-                app.chat_frame.text_area.configure(state="normal")
-                app.chat_frame.text_area.insert("end", f"{nombre} fue recibido\n")
-                app.chat_frame.text_area.configure(state="disabled")
+        def file_received_callback(*args):
+            if not args:
+                return
+
+            nombre = args[0][:-4]
+
+            def update_gui():
+                if app.chat_frame.mac:  # solo actualizar si estamos en la ventana de chat
+                    app.chat_frame.text_area.configure(state="normal")
+                    app.chat_frame.text_area.insert("end", f"{nombre} fue recibido\n")
+                    app.chat_frame.text_area.configure(state="disabled")
+                    app.chat_frame.text_area.see("end")  # asegurar scroll al final
+
+            # programar la actualización en el hilo principal de Tkinter
+            app.after(0, update_gui)
 
         files_folders_iface.set_receive_callback(file_received_callback)
         files_folders_iface.start_receiving_file()

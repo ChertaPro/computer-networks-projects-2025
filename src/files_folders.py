@@ -224,8 +224,7 @@ class LinkChat:
             # Invocar callback si existe
             if hasattr(self, "_callback") and callable(self._callback):
                 nombre = os.path.basename(final)
-                tam_mb = os.path.getsize(final) / (1024 * 1024)
-                self._callback(nombre, tam_mb)  # enviamos nombre y tamaño
+                self._callback(nombre)  # enviamos nombre y tamaño
             # Descomprimir zip si aplica
             try_unzip_and_cleanup(final)
             del self.pending[hhex]

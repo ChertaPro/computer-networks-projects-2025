@@ -257,7 +257,6 @@ class ChatFrame(ctk.CTkFrame):
         main_frame = ctk.CTkFrame(ventana, fg_color="transparent")
         main_frame.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(0, weight=1)
 
         ventana.after(10, ventana.grab_set)
 
@@ -267,23 +266,31 @@ class ChatFrame(ctk.CTkFrame):
 
         archivo_path = {"path": None}
 
-        def seleccionar():
-            # Intentamos seleccionar archivo primero
-            path = filedialog.askopenfilename(parent=ventana, title="Seleccionar archivo o carpeta")
-            if not path:  # si no selecciona archivo, intentamos carpeta
-                path = filedialog.askdirectory(parent=ventana, title="Seleccionar carpeta")
+        # ------------------- Funciones de selección -------------------
+        def seleccionar_archivo():
+            path = filedialog.askopenfilename(parent=ventana, title="Seleccionar archivo")
             if path:
                 archivo_path["path"] = path
-                ruta_label.configure(text=f"Seleccionado:\n{path}")
+                ruta_label.configure(text=f"Archivo seleccionado:\n{path}")
 
-        btn_seleccionar = ctk.CTkButton(main_frame, text="Seleccionar archivo o carpeta",
-                                        command=seleccionar, height=44, font=ctk.CTkFont(size=13))
-        btn_seleccionar.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        def seleccionar_carpeta():
+            path = filedialog.askdirectory(parent=ventana, title="Seleccionar carpeta")
+            if path:
+                archivo_path["path"] = path
+                ruta_label.configure(text=f"Carpeta seleccionada:\n{path}")
 
-        ayuda_label = ctk.CTkLabel(main_frame, text="Selecciona un archivo o carpeta para enviar.\n",
+        # ------------------- Botones de selección -------------------
+        btn_archivo = ctk.CTkButton(main_frame, text="Seleccionar archivo", command=seleccionar_archivo, height=44)
+        btn_archivo.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
+        btn_carpeta = ctk.CTkButton(main_frame, text="Seleccionar carpeta", command=seleccionar_carpeta, height=44)
+        btn_carpeta.grid(row=2, column=0, sticky="ew", pady=(0, 8))
+
+        ayuda_label = ctk.CTkLabel(main_frame, text="Selecciona un archivo o carpeta para enviar.",
                                 font=ctk.CTkFont(size=12), wraplength=480, anchor="w", justify="left")
-        ayuda_label.grid(row=2, column=0, sticky="ew", pady=(6, 10))
+        ayuda_label.grid(row=3, column=0, sticky="ew", pady=(6, 10))
 
+        # ------------------- Función de envío -------------------
         def enviar():
             if archivo_path["path"]:
                 try:
@@ -301,9 +308,11 @@ class ChatFrame(ctk.CTkFrame):
             else:
                 messagebox.showwarning("Sin selección", "Por favor, selecciona un archivo o carpeta antes de enviar.", parent=ventana)
 
+        # ------------------- Botón de enviar -------------------
         btn_enviar = ctk.CTkButton(main_frame, text="Enviar", command=enviar, height=44,
                                 font=ctk.CTkFont(size=14, weight="bold"))
-        btn_enviar.grid(row=3, column=0, sticky="ew", pady=(6, 0))
+        btn_enviar.grid(row=4, column=0, sticky="ew", pady=(6, 0))
+
 
 
     def set_mac(self, mac):
