@@ -3,3 +3,5 @@ source venv/bin/activate
 pip install customtkinter
 
 sudo /home/  "user"  / ... / computer-networks-projects-2025/src/venv/bin/python main.py
+
+sudo /home/john314/LinkChat/computer-networks-projects-2025/src/venv/bin/python main.py

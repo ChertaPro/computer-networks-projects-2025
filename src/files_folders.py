@@ -61,11 +61,13 @@ def try_unzip_and_cleanup(final_path):
                         os.remove(fp)
                     except Exception:
                         pass
-        print(f"[+] zip {os.path.basename(final_path)} descomprimido en {extract_to} y zips auxiliares borrados")
+        print(f"[+] {os.path.basename(final_path)[:-4]} listo en {extract_to} y auxiliares borrados")
     except zipfile.BadZipFile:
         print("[-] zip corrupto o no es un zip válido al intentar descomprimir")
     except Exception as e:
         print(f"[-] error al descomprimir/limpiar: {e}")
+
+import security
 
 class LinkChat:
     def __init__(self, iface, src_mac):
@@ -74,6 +76,8 @@ class LinkChat:
         self.src_mac = src_mac
         self.pending = {}  # filehash_hex -> {'path','chunks'(set),'name','size','hash'(bytes)}
         print(f"[+] iface {iface} listo")
+        self.private_key = security.load_private_key(os.path.join(os.path.dirname(__file__), "private_key.pem"))
+        self.public_keys = {}  # {mac_bytes: public_key}
 
     def _mac_to_bytes(self, mac):
         """Convierte una dirección MAC en formato string a bytes (6B)."""
@@ -89,7 +93,12 @@ class LinkChat:
         self._callback = callback
 
     def send_frame(self, dst, t, payload):
-        self.sock.send(struct.pack("!6s6sH", dst, self.src_mac, ETH_P_LINKCHAT) + struct.pack("!BH", t, len(payload)) + payload)
+        pubkey = self.public_keys.get(dst)
+        if pubkey:
+            encrypted_payload = security.encrypt_large_data(payload, pubkey)
+        else:
+            encrypted_payload = payload
+        self.sock.send(struct.pack("!6s6sH", dst, self.src_mac, ETH_P_LINKCHAT) + struct.pack("!BH", t, len(encrypted_payload)) + encrypted_payload)
     
     def recv_frame(self):
         f = self.sock.recv(RECV_BUF)
@@ -97,7 +106,13 @@ class LinkChat:
         d,s,et = struct.unpack("!6s6sH", f[:14])
         if et != ETH_P_LINKCHAT: return None
         t,l = struct.unpack("!BH", f[14:17])
-        return dict(src=s, type=t, payload=f[17:17+l])
+        payload = f[17:17+l]
+        # Intentar descifrar
+        try:
+            decrypted = security.decrypt_large_data(payload, self.private_key)
+        except Exception:
+            decrypted = payload
+        return dict(src=s, type=t, payload=decrypted)
 
     def _meta_pack(self, name, size, h):
         n = name.encode('utf-8'); fmt = f"!B{len(n)}sQ16s"
@@ -130,7 +145,7 @@ class LinkChat:
         with open(path, "rb") as f:
             if size <= CHUNK_SIZE:
                 self.send_frame(dst, MSG_FILE, meta + f.read())
-                print(f"[+] enviado pequeño {name} ({size}B)")
+                print(f"[+] enviado pequeño {name[:-4]} ({size}B)")
                 return
             self.send_frame(dst, MSG_FILE, meta)
             i = 0
@@ -138,7 +153,7 @@ class LinkChat:
                 self.send_frame(dst, MSG_FILE, h + struct.pack("!I", i) + c)
                 i += 1
                 time.sleep(0.01)
-            print(f"[+] enviado {name} en {i} chunks")
+            print(f"[+] enviado {name[:-4]} en {i} chunks")
 
 
     def recv_loop(self):
@@ -168,7 +183,7 @@ class LinkChat:
                     with open(final, "wb") as o:
                         o.write(rest)
                     if hashlib.md5(rest).digest() == meta["hash"]:
-                        print(f"[+] recibido {meta['name']} ({meta['size']}B)")
+                        print(f"[+] recibido {meta['name'][:-4]} ({meta['size']}B)")
                         # Si es zip, descomprimir y limpiar
                         try_unzip_and_cleanup(final)
                     continue
@@ -178,7 +193,7 @@ class LinkChat:
                 total = (meta["size"] + CHUNK_SIZE - 1)//CHUNK_SIZE
                 if len(self.pending[hhex]["chunks"]) >= total:
                     self._try_finalize(hhex)
-                print(f"[+] preparado para recibir {meta['name']} ({meta['size']}B)")
+                print(f"[+] preparado para recibir {meta['name'][:-4]} ({meta['size']}B)")
             else:
                 # tratar como chunk: [16B hash][4B idx][data...]
                 if len(p) < 21:  # 16 + 4 + at least 1 byte data
@@ -220,7 +235,7 @@ class LinkChat:
             except Exception as e:
                 print(f"[-] error al mover archivo reensamblado: {e}")
                 return
-            print(f"[+] archivo reensamblado: {final}")
+            print(f"[+] archivo reensamblado: {final[:-4]}")
             # Invocar callback si existe
             if hasattr(self, "_callback") and callable(self._callback):
                 nombre = os.path.basename(final)

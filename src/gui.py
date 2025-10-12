@@ -259,7 +259,7 @@ class ChatFrame(ctk.CTkFrame):
         main_frame.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         main_frame.grid_columnconfigure(0, weight=1)
 
-        ventana.after(10, ventana.grab_set)
+        ventana.after(1000, ventana.grab_set)
 
         # Ajustados wraplength para usar el ancho mayor
         ruta_label = ctk.CTkLabel(main_frame, text="Ningún archivo o carpeta seleccionado", anchor="center",

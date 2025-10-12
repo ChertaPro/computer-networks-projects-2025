@@ -22,6 +22,8 @@ iface = os.environ.get("LINKCHAT_IFACE", IFACE_DEFAULT)
 #  CLASE PRINCIPAL: LinkChatInterface
 # ===============================
 
+import security
+
 class LinkChatInterface:
     def __init__(self, interface_name=IFACE_DEFAULT, src_mac=b"\x00\x00\x00\x00\x00\x00"):
         self.running = True
@@ -30,6 +32,10 @@ class LinkChatInterface:
         self.sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETH_P_LINKCHAT))
         self.sock.bind((self.interface, 0))
         print(f"[+] Interfaz {self.interface} inicializada para Link-Chat")
+        # Cargar clave privada propia
+        self.private_key = security.load_private_key(os.path.join(os.path.dirname(__file__), "private_key.pem"))
+        # Diccionario de claves públicas de otros nodos: {mac_bytes: public_key}
+        self.public_keys = {}  # Debe ser llenado por el sistema de descubrimiento
 
     def stop(self):
         self.running = False
@@ -38,12 +44,19 @@ class LinkChatInterface:
     #  Envío de mensajes (con fragmentación)
     # ---------------------------------
     def send_frame(self, dst_mac: bytes, message_type: int, payload: bytes):
-        total_fragments = math.ceil(len(payload) / MAX_PAYLOAD_SIZE)
+        # Cifrar el payload con la clave pública del destinatario si está disponible
+        pubkey = self.public_keys.get(dst_mac)
+        if pubkey:
+            encrypted_payload = security.encrypt_large_data(payload, pubkey)
+        else:
+            # Si no hay clave pública, enviar en claro (o podrías rechazar el envío)
+            encrypted_payload = payload
+        total_fragments = math.ceil(len(encrypted_payload) / MAX_PAYLOAD_SIZE)
         for i in range(total_fragments):
             sleep(0.1)  # evitar saturar la red
             start = i * MAX_PAYLOAD_SIZE
             end = start + MAX_PAYLOAD_SIZE
-            fragment = payload[start:end]
+            fragment = encrypted_payload[start:end]
             frag_length = len(fragment)
 
             # Cabecera LinkChat (6 bytes)
@@ -100,12 +113,18 @@ class LinkChatInterface:
             if all(reassembly_buffer[key]):
                 full_message = b"".join(reassembly_buffer[key])
                 del reassembly_buffer[key]
+                # Intentar descifrar el mensaje con la clave privada local
+                try:
+                    decrypted = security.decrypt_large_data(full_message, self.private_key)
+                except Exception as e:
+                    # Si falla el descifrado, dejar el mensaje en claro
+                    decrypted = full_message
                 return {
                     "src_mac": src_mac,
                     "dst_mac": dst_mac,
                     "msg_type": msg_type,
-                    "payload": full_message,
-                    "length": len(full_message)
+                    "payload": decrypted,
+                    "length": len(decrypted)
                 }
 
     def start_receiving(self, callback):
