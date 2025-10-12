@@ -25,7 +25,7 @@ COPY ../src /app
 COPY ../Tests /app
 
 # Instalar dependencias Python
-RUN pip install --no-cache-dir customtkinter
+RUN pip install --no-cache-dir customtkinter cryptography
 
 # Configurar variable de entorno de interfaz
 ENV LINKCHAT_IFACE=eth0
