@@ -24,11 +24,15 @@ iface = os.environ.get("LINKCHAT_IFACE", IFACE_DEFAULT)
 
 class LinkChatInterface:
     def __init__(self, interface_name=IFACE_DEFAULT, src_mac=b"\x00\x00\x00\x00\x00\x00"):
+        self.running = True
         self.interface = interface_name
         self.src_mac = src_mac
         self.sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(ETH_P_LINKCHAT))
         self.sock.bind((self.interface, 0))
         print(f"[+] Interfaz {self.interface} inicializada para Link-Chat")
+
+    def stop(self):
+        self.running = False
 
     # ---------------------------------
     #  Envío de mensajes (con fragmentación)
@@ -61,7 +65,7 @@ class LinkChatInterface:
         """Recibe tramas y reconstruye mensajes largos (según MAC origen)."""
         reassembly_buffer = {}
 
-        while True:
+        while self.running:
             raw_frame = self.sock.recv(65535)
 
             # Validar longitud mínima de cabecera Ethernet
@@ -107,7 +111,7 @@ class LinkChatInterface:
     def start_receiving(self, callback):
         """Arranca un hilo que invoca callback(frame_dict) por cada mensaje recibido."""
         def _loop():
-            while True:
+            while self.running:
                 try:
                     frame = self.receive_frame()
                     if frame and callable(callback):
@@ -118,7 +122,8 @@ class LinkChatInterface:
                 except Exception:
                     # evitar terminar el hilo por errores puntuales
                     pass
-        threading.Thread(target=_loop, daemon=True).start()
+        self.thread = threading.Thread(target=_loop, daemon=True)
+        self.thread.start()
         print("[*] Receptor Link-Chat iniciado en background")
 
     def send_message(self, dst_mac, message, message_type=1):

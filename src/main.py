@@ -6,7 +6,6 @@ import gui
 import discovery
 import mac_utils
 
-
 def main():
     iface = os.environ.get("LINKCHAT_IFACE", discovery.IFACE_DEFAULT)
 
@@ -29,12 +28,20 @@ def main():
     except Exception as e:
         print(f"[!] No se pudo inicializar LinkChatInterface: {e}")
         link_iface = None
+    files_folders_iface = None
+    try:
+        import files_folders
+        files_folders_iface = files_folders.LinkChat(iface, src_mac)
+    except Exception as e:
+        print(f"[!] No se pudo inicializar LinkChat {e}")
+        link_iface = None
 
     # Iniciar GUI
     app = gui.LinkChatApp()
 
     # Pasar la interfaz de enlace a la app para que la GUI pueda enviar/recibir
     app.link_iface = link_iface
+    app.files_folders_iface = files_folders_iface
 
     # Si tenemos link_iface, arrancar receptor que actualizará la GUI
     if link_iface:
@@ -68,6 +75,7 @@ def main():
                 pass
 
         link_iface.start_receiving(incoming_cb)
+        files_folders_iface.start_receiving_file(incoming_cb)
 
     # Flag para evitar múltiples hilos de actualización
     updater_started = {"v": False}
@@ -78,7 +86,7 @@ def main():
             return
         updater_started["v"] = True
 
-        def updater():
+        def updater(): 
             while True:
                 devices = list(ld.devices.keys())
                 try:

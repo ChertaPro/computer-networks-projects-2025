@@ -1,4 +1,4 @@
-import socket, struct, os, hashlib, time, crypto, link_layer
+import socket, struct, os, hashlib, time, threading
 import shutil, zipfile  # nuevos imports
 
 ETH_P_LINKCHAT = 0x88B5
@@ -6,11 +6,11 @@ MSG_FILE = 1
 CHUNK_SIZE = 1460
 RECV_BUF = 65535
 
-RAMITO_MAC = b'\x10\xf6\x0a\x27\x1a\x32'
-JOSMITO_MAC = b'\xac\x74\xb1\x84\xa2\xba'
+# RAMITO_MAC = b'\x10\xf6\x0a\x27\x1a\x32'
+# JOSMITO_MAC = b'\xac\x74\xb1\x84\xa2\xba'
 
 # FILE = "/home/john314/Stuff"
-FILE = "Stuff.zip"
+# FILE = "Stuff.zip"
 
 def md5sum(path):
     h = hashlib.md5()
@@ -87,9 +87,19 @@ class LinkChat:
         self.pending = {}  # filehash_hex -> {'path','chunks'(set),'name','size','hash'(bytes)}
         print(f"[+] iface {iface} listo")
 
+    def _mac_to_bytes(self, mac):
+        """Convierte una dirección MAC en formato string a bytes (6B)."""
+        if isinstance(mac, bytes) and len(mac) == 6:
+            return mac
+        if isinstance(mac, str):
+            mac = mac.replace(":", "").replace("-", "")
+            return bytes.fromhex(mac)
+        raise ValueError(f"Formato de MAC inválido: {mac}")
+
+
     def send_frame(self, dst, t, payload):
         self.sock.send(struct.pack("!6s6sH", dst, self.src_mac, ETH_P_LINKCHAT) + struct.pack("!BH", t, len(payload)) + payload)
-
+    
     def recv_frame(self):
         f = self.sock.recv(RECV_BUF)
         if len(f) < 17: return None
@@ -122,6 +132,7 @@ class LinkChat:
         return {"name": name_s, "size": size, "hash": h}, sz
 
     def send_file(self, dst, path):
+        dst = self._mac_to_bytes(dst)  # <-- conversión segura aquí
         name, size = os.path.basename(path), os.path.getsize(path)
         h = md5sum(path)
         meta = self._meta_pack(name, size, h)
@@ -133,11 +144,11 @@ class LinkChat:
             self.send_frame(dst, MSG_FILE, meta)
             i = 0
             while (c := f.read(CHUNK_SIZE)):
-                # index as 4 bytes unsigned
                 self.send_frame(dst, MSG_FILE, h + struct.pack("!I", i) + c)
                 i += 1
-                time.sleep(0.01)  # evita saturar buffers
+                time.sleep(0.01)
             print(f"[+] enviado {name} en {i} chunks")
+
 
     def recv_loop(self):
         os.makedirs("downloads/tmp", exist_ok=True)
@@ -227,24 +238,32 @@ class LinkChat:
         else:
             print("[-] hash final no coincide")
 
-if __name__ == "__main__":
-    iface = "wlp0s20f3"
-    dst = JOSMITO_MAC
-    src = JOSMITO_MAC
-    chat = LinkChat(iface, src)
-    file = FILE
-
-    # Preparar zip (si es archivo/carpeta) en downloads/tmp; si ya es zip, lo usamos tal cual
-    zip_path, created = prepare_zip(file)
-    try:
-        chat.send_file(dst, zip_path)
-    finally:
-        # eliminar zip auxiliar si fue creado por prepare_zip
-        if created and os.path.exists(zip_path):
+    def start_receiving_file(self, callback=None):
+        """
+        Inicia recv_loop en un hilo. Si pasas callback, el recv_loop actual (que imprime) 
+        no lo usa; para integrar callback habría que modificar recv_loop para invocar callback
+        cuando se reensambla un archivo. Por ahora, simplificamos: arrancamos recv_loop en un hilo.
+        """
+        def _runner():
             try:
-                os.remove(zip_path)
+                self.recv_loop()
             except Exception as e:
-                print(f"[-] no pude borrar zip auxiliar {zip_path}: {e}")
+                print(f"[-] recv_loop terminó con error: {e}")
+        threading.Thread(target=_runner, daemon=True).start()
 
-    # luego pasar a escuchar
-    chat.recv_loop()
+    def send_folder(self, dst, file_path):
+        """
+        dst: destino (se asume correcto para send_file; la conversión a bytes debe hacerse
+             en la capa que instancie LinkChat, si trabaja con strings MAC).
+        file_path: ruta del archivo o carpeta a enviar.
+        """
+        dst = self._mac_to_bytes(dst) 
+        zip_path, created = prepare_zip(file_path)
+        try:
+            self.send_file(dst, zip_path)
+        finally:
+            if created and os.path.exists(zip_path):
+                try:
+                    os.remove(zip_path)
+                except Exception as e:
+                    print(f"[-] no pude borrar zip auxiliar {zip_path}: {e}")
