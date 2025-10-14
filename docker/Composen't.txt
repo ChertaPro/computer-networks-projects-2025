@@ -1,0 +1,130 @@
+
+# Guía explicativa del script LinkChat (bash + Docker)
+
+Este script automatiza la creación de un entorno de pruebas para la aplicación **LinkChat** usando 
+Docker. Incluye la limpieza de contenedores antiguos, construcción de la imagen, creación de red,
+ejecución de nodos y verificación.
+
+---
+
+## 1 - Cabecera y configuración inicial
+
+```bash
+#!/bin/bash
+set -e
+```
+
+- `#!/bin/bash`: indica que se ejecutará con Bash.
+- `set -e`: detiene el script si ocurre algún error.
+
+---
+
+## 2 - Limpieza previa de contenedores y red
+
+```bash
+docker rm -f linkchat_node1 linkchat_node2 >/dev/null 2>&1 || true
+docker network rm linkchat_net >/dev/null 2>&1 || true
+```
+
+- `docker rm -f`: fuerza la eliminación de los contenedores `linkchat_node1` y `linkchat_node2`.
+- `docker network rm`: elimina la red `linkchat_net` si existe.
+- `>/dev/null 2>&1`: oculta la salida y errores.
+- `|| true`: evita que el script se detenga si no existen.
+
+---
+
+## 3 - Construcción de la imagen Docker
+
+```bash
+docker build --build-arg DISPLAY="$DISPLAY" -t linkchat_image -f Dockerfile ..
+```
+
+- `--build-arg DISPLAY="$DISPLAY"`: pasa la variable de entorno `DISPLAY` para la GUI.
+- `-t linkchat_image`: asigna nombre a la imagen.
+- `-f Dockerfile`: indica la ubicación del Dockerfile.
+- `..`: contexto de build (directorio padre).
+
+---
+
+## 4 - Creación de la red Docker
+
+```bash
+docker network inspect linkchat_net >/dev/null 2>&1 ||   docker network create --driver bridge --subnet 172.28.0.0/16 linkchat_net >/dev/null
+```
+
+- Comprueba si la red `linkchat_net` existe.
+- Si no existe, la crea con:
+  - `--driver bridge`: red virtual aislada tipo bridge.
+  - `--subnet 172.28.0.0/16`: rango de IPs para los contenedores.
+
+---
+
+## 5 - Configuración de acceso a la GUI
+
+```bash
+xhost +local:root >/dev/null
+```
+
+- Permite que los contenedores Docker accedan al servidor gráfico X11 del host.
+- Necesario para mostrar aplicaciones gráficas como Tkinter.
+
+---
+
+## 6 - Ejecución de los nodos
+
+### Node1
+
+```bash
+docker run -dit   --name linkchat_node1   --hostname node1   --privileged   --env DISPLAY=$DISPLAY   -v /tmp/.X11-unix:/tmp/.X11-unix   --network linkchat_net   --ip 172.28.0.2   linkchat_image
+```
+
+### Node2
+
+```bash
+docker run -dit   --name linkchat_node2   --hostname node2   --privileged   --env DISPLAY=$DISPLAY   -v /tmp/.X11-unix:/tmp/.X11-unix   --network linkchat_net   --ip 172.28.0.3   linkchat_image
+```
+
+**Parámetros clave:**
+
+| Parámetro                          | Función |
+|-----------                         |---------|
+| `-dit`                             | Ejecuta en segundo plano con pseudo-terminal e interactivo |
+| `--name`                           | Nombre del contenedor |
+| `--hostname`                       | Hostname interno del contenedor |
+| `--privileged`                     | Acceso completo al sistema del host, necesario para red y dispositivos |
+| `--env DISPLAY=$DISPLAY`           | Permite mostrar GUI en X11 |
+| `-v /tmp/.X11-unix:/tmp/.X11-unix` | Monta el socket gráfico para GUI |
+| `--network linkchat_net`           | Conecta el contenedor a la red creada |
+| `--ip 172.28.x.x`                  | Asigna IP fija dentro de la red bridge |
+| `linkchat_image`                   | Imagen que se ejecuta |
+
+---
+
+## 7 - Verificación de contenedores activos
+
+```bash
+docker ps
+```
+
+- Muestra los contenedores activos.
+- Permite confirmar que `linkchat_node1` y `linkchat_node2` están ejecutándose.
+
+---
+
+## 8 - Limpieza posterior (opcional)
+
+```bash
+docker stop linkchat_node1 linkchat_node2
+docker rm linkchat_node1 linkchat_node2
+docker network rm linkchat_net
+```
+
+- Detiene los contenedores.
+- Los elimina junto con la red.
+
+---
+
+✅ **Resultado:**
+
+- Dos nodos de LinkChat (`node1` y `node2`) ejecutándose en contenedores Docker, comunicándose
+ entre sí en la red `linkchat_net`, con soporte para GUI.
