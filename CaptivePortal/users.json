@@ -1,0 +1,18 @@
+{
+  "users": [
+    {
+      "username": "admin",
+      "salt": "4007aa9dcb1e8a821b692c9b585eda36",
+      "hash": "886a21f6d663add8f42f985a103440fb7127097fee01df7b58270305d38f6c00",
+      "is_admin": true,
+      "created_at": 1764975277
+    },
+    {
+      "username": "ll",
+      "salt": "f7e37bf9090b90a078e07774d98278c6",
+      "hash": "abe7047f0de0000aad1a0520583150236059352ebea983b88403908aa7a28a5e",
+      "is_admin": false,
+      "created_at": 1764975367
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Portal Cautivo - Login</title>
+</head>
+<body>
+  <h2>Portal Cautivo — Iniciar sesión</h2>
+  <form id="login" method="post" action="/login" onsubmit="onLogin(event)">
+    Usuario: <input name="username" id="login-username" required /><br/>
+    Contraseña: <input name="password" id="login-password" type="password" required /><br/>
+    <button type="submit">Ingresar</button>
+  </form>
+  <p id="login-msg"></p>
+
+  <hr/>
+  <h3>Crear cuenta</h3>
+  <form id="register" onsubmit="onRegister(event)">
+    Nuevo usuario: <input name="username" id="reg-username" required /><br/>
+    Contraseña: <input name="password" id="reg-password" type="password" required /><br/>
+    <button type="submit">Crear cuenta</button>
+  </form>
+  <p id="reg-msg"></p>
+
+<script>
+async function onLogin(e){
+  e.preventDefault();
+  const form = document.getElementById('login');
+  const formData = new URLSearchParams(new FormData(form));
+  const res = await fetch('/login', {method:'POST', body: formData.toString(), headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+  if (res.status === 303 || res.status === 200) {
+    window.location = '/success';
+  } else {
+    const txt = await res.text();
+    document.getElementById('login-msg').innerText = 'Error: ' + txt;
+  }
+}
+
+async function onRegister(e){
+  e.preventDefault();
+  const form = document.getElementById('register');
+  const formData = new URLSearchParams(new FormData(form));
+  const res = await fetch('/register', {method:'POST', body: formData.toString(), headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+  const txt = await res.text();
+  if (res.status === 201) {
+    document.getElementById('reg-msg').innerText = 'Cuenta creada. Puedes iniciar sesión.';
+  } else {
+    document.getElementById('reg-msg').innerText = 'Error creando cuenta: ' + txt;
+  }
+}
+</script>
+</body>
+</html>
