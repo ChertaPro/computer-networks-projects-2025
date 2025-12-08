@@ -65,15 +65,22 @@ def apply_base_rules(lan_iface, wan_iface, portal_port=8080):
     _run_cmd(["iptables", "-P", "FORWARD", "DROP"])
     # permitir tráfico ya establecido/relacionado
     _run_cmd(["iptables", "-A", "FORWARD", "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"])
+    #
+    # Permitir DNS desde LAN hacia Internet
+    _run_cmd(["iptables", "-A", "FORWARD", "-i", lan_iface, "-p", "udp", "--dport", "53", "-j", "ACCEPT"])
+    _run_cmd(["iptables", "-A", "FORWARD", "-o", lan_iface, "-p", "udp", "--sport", "53", "-j", "ACCEPT"])
+    
+    # Permitir DHCP
+    _run_cmd(["iptables", "-A", "INPUT",  "-p", "udp", "--dport", "67:68", "-j", "ACCEPT"])
+    _run_cmd(["iptables", "-A", "OUTPUT", "-p", "udp", "--sport", "67:68", "-j", "ACCEPT"])
 
-    # Permitir DNS saliente
-    _run_cmd(["iptables", "-A", "INPUT", "-p", "udp", "--dport", "53", "-j", "ACCEPT"])
-    _run_cmd(["iptables", "-A", "OUTPUT", "-p", "udp", "--sport", "53", "-j", "ACCEPT"])
+    # Permitir acceso desde LAN al portal cautivo (puerto portal_port)
+    _run_cmd(["iptables", "-A", "INPUT", "-i", lan_iface, "-p", "tcp", "--dport", str(portal_port), "-j", "ACCEPT"])
 
     # Redirigir HTTP desde LAN a portal_port
     _run_cmd(["iptables", "-t", "nat", "-A", "PREROUTING", "-i", lan_iface, "-p", "tcp", "--dport", "80", "-j",
               "REDIRECT", "--to-ports", str(portal_port)])
-
+    
     # MASQUERADE en postrouting por WAN
     _run_cmd(["iptables", "-t", "nat", "-A", "POSTROUTING", "-o", wan_iface, "-j", "MASQUERADE"])
 
@@ -82,8 +89,11 @@ def allow_client_by_ip(ip):
     _run_cmd(["iptables", "-I", "FORWARD", "-d", ip, "-j", "ACCEPT"])
 
 def allow_client_by_mac(mac, lan_iface):
-    _run_cmd(["iptables", "-I", "FORWARD", "-m", "mac", "--mac-source", mac, "-i", lan_iface, "-j", "ACCEPT"])
-
+    # Permitir salida del cliente
+    _run_cmd(["iptables", "-I", "FORWARD", "-i", lan_iface, "-m", "mac", "--mac-source", mac, "-j", "ACCEPT"])
+    # Permitir entrada al cliente (respuesta)
+    _run_cmd(["iptables", "-I", "FORWARD", "-o", lan_iface, "-m", "mac", "--mac-destination", mac, "-j", "ACCEPT"])
+    
 def revoke_client_by_ip(ip):
     # Intentamos borrar; si falla, ignoramos
     try:

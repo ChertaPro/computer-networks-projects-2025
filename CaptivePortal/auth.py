@@ -3,6 +3,7 @@ import json
 import os
 import secrets
 import hashlib
+import threading
 import time
 
 BASE_DIR = os.path.dirname(__file__)
@@ -46,29 +47,36 @@ def hash_password(password, salt, rounds=HASH_ROUNDS):
         h = hashlib.sha256(h).digest()
     return h.hex()
 
+_file_lock = threading.Lock()
+
 def create_user(username, password, is_admin=False):
     if not username or not password:
         raise ValueError("username and password required")
-    data = load_users()
-    if any(u.get("username") == username for u in data.get("users", [])):
-        raise ValueError("user exists")
-    salt = generate_salt()
-    h = hash_password(password, salt)
-    user = {
-        "username": username,
-        "salt": salt,
-        "hash": h,
-        "is_admin": bool(is_admin),
-        "created_at": int(time.time())
-    }
-    data.setdefault("users", []).append(user)
-    save_users(data)
+
+    with _file_lock:
+        data = load_users()
+        if any(u.get("username") == username for u in data.get("users", [])):
+            raise ValueError("user exists")
+
+        salt = generate_salt()
+        h = hash_password(password, salt)
+        user = {
+            "username": username,
+            "salt": salt,
+            "hash": h,
+            "is_admin": bool(is_admin),
+            "created_at": int(time.time())
+        }
+        data.setdefault("users", []).append(user)
+        save_users(data)
+        
     return user
 
 def verify_user(username, password):
     if not username or password is None:
         return False
-    data = load_users()
+    with _file_lock:
+        data = load_users()
     for u in data.get("users", []):
         if u.get("username") == username:
             expected = u.get("hash")

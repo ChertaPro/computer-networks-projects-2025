@@ -10,6 +10,7 @@ from http import HTTPStatus
 import auth
 import firewall
 from sessions import SessionManager
+from netutils import detect_interfaces
 
 BASE_DIR = os.path.dirname(__file__)
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -21,23 +22,16 @@ LAN_IFACE = "wlp0s20f3"
 WAN_IFACE = "enx027a5826373e"
 
 Ramon:
+LAN_IFACE = "wlp0s20f3"
+WAN_IFACE = "enxdac03dbeb19d"
 
 """
 
-LAN_IFACE = "wlp0s20f3"
-WAN_IFACE = "enx027a5826373e"
 PORTAL_PORT = 8080
 SESSION_DURATION = 3600
 ADMIN_TOKEN = "change-me-admin-token"
 
-# inicializar firewall y reglas (requiere permisos)
-try:
-    firewall.enable_ip_forward()
-    firewall.apply_base_rules(LAN_IFACE, WAN_IFACE, portal_port=PORTAL_PORT)
-except Exception as e:
-    print("Warning: no se pudieron aplicar reglas de firewall:", str(e))
 
-session_mgr = SessionManager(firewall, LAN_IFACE)
 
 def read_static(path):
     p = os.path.join(WEB_DIR, path.lstrip("/"))
@@ -248,7 +242,28 @@ def serve_forever(host="0.0.0.0", port=PORTAL_PORT):
         print("Server stopped")
 
 if __name__ == "__main__":
-    # Ensure users file exists with an admin default for first run
+    print("[*] Detectando interfaces de red...")
+
+    lan_iface, wan_iface = detect_interfaces()
+
+
+    if lan_iface is None or wan_iface is None:
+        print("[ERROR] No se pudieron detectar las interfaces LAN/WAN.")
+        exit(1)
+
+    print(f"[OK] LAN_IFACE = {lan_iface}")
+    print(f"[OK] WAN_IFACE = {wan_iface}")
+
+    # Inicializar firewall en base a las interfaces detectadas
+    try:
+        firewall.enable_ip_forward()
+        firewall.apply_base_rules(lan_iface, wan_iface, portal_port=PORTAL_PORT)
+        print("[*] Reglas de firewall aplicadas correctamente.")
+    except Exception as e:
+        print("[ERROR] Falló la configuración del firewall:", str(e))
+        exit(1)
+
+    # Cargar usuarios; crear admin si es primera ejecución
     try:
         d = auth.load_users()
         if not d.get("users"):
@@ -256,4 +271,6 @@ if __name__ == "__main__":
             auth.create_user("admin", "admin", is_admin=True)
     except Exception as e:
         print("Warning creating default user:", str(e))
+    session_mgr = SessionManager(firewall, lan_iface)
+    # Iniciar servidor principal
     serve_forever()
