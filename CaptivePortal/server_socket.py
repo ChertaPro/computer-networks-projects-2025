@@ -356,7 +356,6 @@ def serve_https(host="0.0.0.0", port=HTTPS_PORT):
             try:
                 conn, addr = sock.accept()
             except ssl.SSLError as e:
-                print(f"[!] SSL handshake failed: {e}")
                 continue
             t = threading.Thread(target=handle_https_client, args=(conn, addr), daemon=True)
             t.start()

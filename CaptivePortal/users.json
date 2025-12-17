@@ -41,6 +41,13 @@
       "hash": "7379ec509df761ca8510db98ec7bc40629216d9e33cdc85361f7ebfb6af785e3",
       "is_admin": false,
       "created_at": 1765988749
+    },
+    {
+      "username": "asd",
+      "salt": "7ad1b7d997017de20d389d5158ccab12",
+      "hash": "dc9495bff89e985b264bedf6da46834850e837f1855b4e9974b460dd4c0a2d44",
+      "is_admin": false,
+      "created_at": 1765990897
     }
   ]
 }
