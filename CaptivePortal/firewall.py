@@ -1,9 +1,13 @@
-# firewall.py
+# firewall.py - VERSIÓN MEJORADA CON BACKUP/RESTORE
 import subprocess
 import shutil
+import os
+import atexit
+
+STATE_BACKUP = "/tmp/captive_portal_iptables.backup"
+FORWARD_POLICY_FILE = "/tmp/captive_portal_forward_policy.txt"
 
 def _run_cmd(args):
-    # Ejecuta comando sin shell; levanta excepción si falla
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     except FileNotFoundError as e:
@@ -16,14 +20,97 @@ def ensure_iptables_available():
     if not shutil.which("iptables"):
         raise RuntimeError("iptables not found on PATH")
 
+# ===== NUEVAS FUNCIONES DE BACKUP/RESTORE =====
+
+def backup_iptables():
+    """Guarda el estado actual de iptables antes de modificarlo"""
+    try:
+        print("[*] Guardando estado actual de iptables...")
+        out = _run_cmd(["iptables-save"])
+        with open(STATE_BACKUP, "w") as f:
+            f.write(out)
+        
+        # Guardar política FORWARD actual
+        out = _run_cmd(["iptables", "-L", "FORWARD", "-n"])
+        for line in out.splitlines():
+            if line.startswith("Chain FORWARD"):
+                # Extraer política (ACCEPT/DROP)
+                if "(policy" in line:
+                    policy = line.split("policy ")[1].split()[0].rstrip(")")
+                    with open(FORWARD_POLICY_FILE, "w") as f:
+                        f.write(policy)
+                break
+        
+        print("[✓] Backup guardado en", STATE_BACKUP)
+    except Exception as e:
+        print(f"[!] Advertencia: no se pudo guardar backup: {e}")
+
+def restore_iptables():
+    """Restaura el estado original de iptables"""
+    if os.path.exists(STATE_BACKUP):
+        try:
+            print("[*] Restaurando estado original de iptables...")
+            with open(STATE_BACKUP) as f:
+                subprocess.run(["iptables-restore"], input=f.read(), text=True, 
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            os.remove(STATE_BACKUP)
+            print("[✓] Iptables restaurado")
+        except Exception as e:
+            print(f"[!] Error restaurando iptables: {e}")
+            print("[!] Ejecuta manualmente: sudo iptables-restore < " + STATE_BACKUP)
+    
+    if os.path.exists(FORWARD_POLICY_FILE):
+        try:
+            os.remove(FORWARD_POLICY_FILE)
+        except:
+            pass
+
+def cleanup_portal_rules(lan_iface, wan_iface, portal_port=80):
+    """Limpia solo las reglas específicas del portal (alternativa más quirúrgica)"""
+    print("[*] Limpiando reglas del portal cautivo...")
+    
+    # Restaurar política FORWARD
+    if os.path.exists(FORWARD_POLICY_FILE):
+        try:
+            with open(FORWARD_POLICY_FILE) as f:
+                policy = f.read().strip()
+            _run_cmd(["iptables", "-P", "FORWARD", policy])
+            print(f"[✓] Política FORWARD restaurada a {policy}")
+        except Exception as e:
+            print(f"[!] Error restaurando política FORWARD: {e}")
+            # Fallback seguro
+            _run_cmd(["iptables", "-P", "FORWARD", "ACCEPT"])
+    
+    # Borrar redirecciones PREROUTING (HTTP)
+    try:
+        _run_cmd(["iptables", "-t", "nat", "-D", "PREROUTING", 
+                 "-i", lan_iface, "-p", "tcp", "--dport", str(portal_port), 
+                 "-j", "REDIRECT", "--to-ports", str(portal_port)])
+    except:
+        pass
+    
+    # Borrar MASQUERADE
+    try:
+        _run_cmd(["iptables", "-t", "nat", "-D", "POSTROUTING", 
+                 "-o", wan_iface, "-j", "MASQUERADE"])
+    except:
+        pass
+    
+    # Limpiar cadena FORWARD (opcional - más agresivo)
+    try:
+        _run_cmd(["iptables", "-F", "FORWARD"])
+    except:
+        pass
+    
+    print("[✓] Reglas del portal limpiadas")
+
+# ===== FIN NUEVAS FUNCIONES =====
+
 def enable_ip_forward():
-    # Habilitar forwarding en runtime (requiere permisos)
-    ensure_iptables_available()  # check early
+    ensure_iptables_available()
     _run_cmd(["sysctl", "-w", "net.ipv4.ip_forward=1"])
-    # NOTA: persistir en /etc/sysctl.conf es tarea manual (informada en README)
 
 def ip_neigh_get_mac(ip):
-    # Obtiene la MAC localmente conocida para una IP usando 'ip neigh'
     if not shutil.which("ip"):
         return None
     try:
@@ -39,63 +126,56 @@ def ip_neigh_get_mac(ip):
     return None
 
 def clear_base_rules():
-    # Intenta limpiar reglas previas. No falla completamente si no puede.
     try:
         _run_cmd(["iptables", "-t", "nat", "-F"])
     except RuntimeError:
-        # puede no existir la tabla o no haber permiso; toleramos
         pass
     try:
         _run_cmd(["iptables", "-F"])
     except RuntimeError:
         pass
 
-def apply_base_rules(lan_iface, wan_iface, portal_port=8080):
-    """
-    Aplica reglas base:
-    - DROP por defecto en FORWARD
-    - Redirigir HTTP/HTTPS del LAN a portal_port (REDIRECT)
-    - MASQUERADE en WAN
-    """
+def apply_base_rules(lan_iface, wan_iface, portal_port=80):
+    """Aplica reglas base para el portal cautivo"""
     ensure_iptables_available()
-    # Limpia reglas previas (MVP)
+    
+    # ⭐ GUARDAR BACKUP ANTES DE MODIFICAR ⭐
+    backup_iptables()
+    
     clear_base_rules()
 
     # 1) Política default FORWARD DROP
     _run_cmd(["iptables", "-P", "FORWARD", "DROP"])
     
-    # Permitir tráfico ya establecido/relacionado (MUY IMPORTANTE para conexiones existentes)
+    # Permitir tráfico establecido/relacionado
     _run_cmd(["iptables", "-A", "FORWARD", "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"])
     
-    # 2) Permitir DNS desde LAN hacia cualquier destino (para resolución de nombres)
+    # ⭐ BLOQUEAR HTTPS PARA NO AUTENTICADOS ⭐
+    _run_cmd(["iptables", "-A", "FORWARD", "-i", lan_iface, "-p", "tcp", "--dport", "443", "-j", "DROP"])
+    
+    # 2) Permitir DNS desde LAN
     _run_cmd(["iptables", "-A", "FORWARD", "-i", lan_iface, "-p", "udp", "--dport", "53", "-j", "ACCEPT"])
     _run_cmd(["iptables", "-A", "FORWARD", "-i", lan_iface, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"])
-    
-    # Permitir respuestas DNS de vuelta
     _run_cmd(["iptables", "-A", "FORWARD", "-o", lan_iface, "-p", "udp", "--sport", "53", "-j", "ACCEPT"])
     _run_cmd(["iptables", "-A", "FORWARD", "-o", lan_iface, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"])
     
-    # 3) Permitir DHCP en INPUT/OUTPUT (para que el gateway pueda servir DHCP)
+    # 3) Permitir DHCP
     _run_cmd(["iptables", "-A", "INPUT",  "-p", "udp", "--dport", "67:68", "-j", "ACCEPT"])
     _run_cmd(["iptables", "-A", "OUTPUT", "-p", "udp", "--sport", "67:68", "-j", "ACCEPT"])
     
-    # Permitir DNS en INPUT si el gateway actúa como DNS resolver
+    # Permitir DNS en INPUT
     _run_cmd(["iptables", "-A", "INPUT", "-i", lan_iface, "-p", "udp", "--dport", "53", "-j", "ACCEPT"])
     _run_cmd(["iptables", "-A", "INPUT", "-i", lan_iface, "-p", "tcp", "--dport", "53", "-j", "ACCEPT"])
 
-    # 4) Permitir acceso desde LAN al portal cautivo (puerto portal_port)
-    _run_cmd(["iptables", "-A", "INPUT", "-i", lan_iface, "-p", "tcp", "--dport", str(portal_port), "-j", "ACCEPT"])
-
-    # 5) Redirigir HTTP (puerto 80) desde LAN al portal
-    _run_cmd(["iptables", "-t", "nat", "-A", "PREROUTING", "-i", lan_iface, "-p", "tcp", "--dport", "80", "-j",
-            "REDIRECT", "--to-ports", str(portal_port)])
+    # 4) Permitir acceso al servidor HTTP (puerto 80) y HTTPS (puerto 8443)
+    _run_cmd(["iptables", "-A", "INPUT", "-i", lan_iface, "-p", "tcp", "--dport", "80", "-j", "ACCEPT"])
+    _run_cmd(["iptables", "-A", "INPUT", "-i", lan_iface, "-p", "tcp", "--dport", "8443", "-j", "ACCEPT"])
     
-    # 6) Redirigir HTTPS (puerto 443) desde LAN al portal (para captive portal detection)
-    _run_cmd(["iptables", "-t", "nat", "-A", "PREROUTING", "-i", lan_iface, "-p", "tcp", "--dport", "443", "-j",
-            "REDIRECT", "--to-ports", str(portal_port)])
-    
-    # 7) MASQUERADE en postrouting por WAN (enmascaramiento IP / NAT)
+    # 7) MASQUERADE para NAT
     _run_cmd(["iptables", "-t", "nat", "-A", "POSTROUTING", "-o", wan_iface, "-j", "MASQUERADE"])
+    
+    # ⭐ REGISTRAR CLEANUP AL EXIT ⭐
+    atexit.register(lambda: cleanup_portal_rules(lan_iface, wan_iface, portal_port))
 
 def allow_client_by_ip(ip):
     """Permite el acceso completo a un cliente por su IP"""
@@ -103,21 +183,11 @@ def allow_client_by_ip(ip):
     _run_cmd(["iptables", "-I", "FORWARD", "1", "-d", ip, "-j", "ACCEPT"])
 
 def allow_client_by_mac(mac, lan_iface):
-    """
-    Permite el acceso a un cliente por su MAC address.
-    NOTA: --mac-destination NO EXISTE en iptables, por eso solo filtramos por --mac-source
-    y confiamos en las reglas ESTABLISHED,RELATED para el tráfico de retorno.
-    """
-    # Permitir salida del cliente (tráfico originado desde esta MAC)
+    """Permite el acceso a un cliente por su MAC address"""
     _run_cmd(["iptables", "-I", "FORWARD", "1", "-i", lan_iface, "-m", "mac", "--mac-source", mac, "-j", "ACCEPT"])
-    
-    # Para el tráfico de retorno hacia el cliente, usamos la IP asociada a la MAC
-    # o confiamos en ESTABLISHED,RELATED que ya está configurado en apply_base_rules()
-    # No necesitamos regla adicional aquí porque ESTABLISHED,RELATED lo maneja
     
 def revoke_client_by_ip(ip):
     """Revoca el acceso de un cliente por su IP"""
-    # Intentamos borrar las reglas; si fallan, ignoramos (puede que no existan)
     try:
         _run_cmd(["iptables", "-D", "FORWARD", "-s", ip, "-j", "ACCEPT"])
     except RuntimeError:
@@ -133,4 +203,3 @@ def revoke_client_by_mac(mac, lan_iface):
         _run_cmd(["iptables", "-D", "FORWARD", "-i", lan_iface, "-m", "mac", "--mac-source", mac, "-j", "ACCEPT"])
     except RuntimeError:
         pass
-    # No hay regla de retorno específica por MAC para eliminar
