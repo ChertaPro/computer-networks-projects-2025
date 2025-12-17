@@ -1,53 +1,856 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="es">
 <head>
-  <meta charset="utf-8">
-  <title>Portal Cautivo - Login</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Cautivo - Autenticación de Red</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animación de fondo con partículas */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            filter: blur(0.5px);
+            animation: floatUp linear infinite;
+        }
+
+        @keyframes floatUp {
+            from {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-120vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+
+        .container {
+            display: flex;
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+        }
+
+        .left-panel {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .left-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff 0%, #e0e7ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
+            to { filter: drop-shadow(0 0 20px rgba(255,255,255,0.8)); }
+        }
+
+        .logo-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            font-weight: 300;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .project-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .project-description {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            opacity: 0.95;
+            margin-top: 25px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .network-info {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 35px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .network-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .network-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 12px 20px;
+            border-radius: 10px;
+            display: inline-block;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .login-title {
+            color: #1e1b4b;
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .login-subtitle {
+            color: #6366f1;
+            font-size: 1.1rem;
+            margin-bottom: 35px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #1e1b4b;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .input-container {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.3rem;
+            z-index: 1;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 18px 16px 55px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #f9fafb;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .password-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .password-container input {
+            flex: 1;
+        }
+
+        .toggle-password {
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 0 20px;
+            cursor: pointer;
+            color: #6366f1;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .toggle-password:hover {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .terms-container {
+            display: flex;
+            align-items: flex-start;
+            margin: 25px 0;
+            gap: 12px;
+        }
+
+        .terms-container input[type="checkbox"] {
+            width: auto;
+            min-width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .terms-container label {
+            color: #4b5563;
+            font-size: 0.95rem;
+            cursor: pointer;
+            line-height: 1.5;
+        }
+
+        .terms-container a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .terms-container a:hover {
+            text-decoration: underline;
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 18px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            text-transform: uppercase;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .login-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 25px;
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .register-link a {
+            color: #667eea;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border: 2px solid #dbeafe;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3b82f6;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Modales mejorados */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 600px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border-radius: 20px;
+            padding: 40px;
+            position: relative;
+            animation: slideUp 0.3s;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #f3f4f6;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: #ef4444;
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        .modal-content h2 {
+            color: #1e1b4b;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+
+        .terms-text {
+            line-height: 1.8;
+            color: #4b5563;
+        }
+
+        .terms-text p {
+            margin-bottom: 15px;
+        }
+
+        .terms-text strong {
+            color: #1e1b4b;
+            font-weight: 600;
+        }
+
+        .accept-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 25px;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .accept-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                max-width: 500px;
+            }
+            
+            .left-panel, .right-panel {
+                padding: 40px 30px;
+            }
+
+            .logo {
+                font-size: 3rem;
+            }
+
+            .project-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h2>Portal Cautivo — Iniciar sesión</h2>
-  <form id="login" method="post" action="/login" onsubmit="onLogin(event)">
-    Usuario: <input name="username" id="login-username" required /><br/>
-    Contraseña: <input name="password" id="login-password" type="password" required /><br/>
-    <button type="submit">Ingresar</button>
-  </form>
-  <p id="login-msg"></p>
+    <!-- Partículas animadas de fondo -->
+    <div class="particles" id="particles"></div>
 
-  <hr/>
-  <h3>Crear cuenta</h3>
-  <form id="register" onsubmit="onRegister(event)">
-    Nuevo usuario: <input name="username" id="reg-username" required /><br/>
-    Contraseña: <input name="password" id="reg-password" type="password" required /><br/>
-    <button type="submit">Crear cuenta</button>
-  </form>
-  <p id="reg-msg"></p>
+    <div class="container">
+        <div class="left-panel">
+            <div class="logo-container">
+                <div class="logo">🔐 CP</div>
+                <div class="logo-subtitle">Captive Portal</div>
+            </div>
+            
+            <h1 class="project-title">Portal de Acceso</h1>
+            
+            <p class="project-description">
+                Sistema de autenticación y control de acceso a la red. Implementa un portal cautivo con 
+                cifrado HTTPS, gestión de sesiones y bloqueo de tráfico no autorizado mediante firewall.
+            </p>
+            
+            <div class="network-info">
+                <h3>🌐 Tu Dirección IP</h3>
+                <div class="network-ip" id="current-ip">Detectando...</div>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <h2 class="login-title">Iniciar Sesión</h2>
+            <p class="login-subtitle">Accede a los recursos de la red</p>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Usuario</label>
+                    <div class="input-container">
+                        <div class="input-icon">👤</div>
+                        <input type="text" id="username" name="username" placeholder="Ingresa tu usuario" required autocomplete="username">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <div class="password-container">
+                        <div class="input-container" style="flex: 1;">
+                            <div class="input-icon">🔒</div>
+                            <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+                        </div>
+                        <button type="button" class="toggle-password" id="toggle-password">👁️</button>
+                    </div>
+                </div>
+                
+                <div class="terms-container">
+                    <input type="checkbox" id="terms" name="terms" required>
+                    <label for="terms">Acepto los <a href="#" id="terms-link">términos y condiciones</a> de uso de la red</label>
+                </div>
+                
+                <button type="submit" class="login-btn" id="login-btn">Conectar</button>
+            </form>
+            
+            <div class="register-link">
+                ¿No tienes cuenta? <a href="#" id="register-link">Regístrate aquí</a>
+            </div>
+            
+            <div class="status-indicator" id="status-indicator" style="display: none;">
+                <div class="status-dot"></div>
+                <span id="status-text">Autenticando...</span>
+            </div>
+        </div>
+    </div>
 
-<script>
-async function onLogin(e){
-  e.preventDefault();
-  const form = document.getElementById('login');
-  const formData = new URLSearchParams(new FormData(form));
-  const res = await fetch('/login', {method:'POST', body: formData.toString(), headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-  if (res.status === 303 || res.status === 200) {
-    window.location = '/success';
-  } else {
-    const txt = await res.text();
-    document.getElementById('login-msg').innerText = 'Error: ' + txt;
-  }
-}
+    <!-- Modal de Términos -->
+    <div id="terms-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="close-terms">×</button>
+            <h2>📜 Términos y Condiciones</h2>
+            <div class="terms-text">
+                <p><strong>1. Aceptación de Términos:</strong> Al acceder a esta red, aceptas cumplir con todas las políticas y regulaciones establecidas.</p>
+                <p><strong>2. Uso Apropiado:</strong> Los recursos de red deben usarse exclusivamente para fines académicos, de investigación y administrativos legítimos.</p>
+                <p><strong>3. Seguridad:</strong> Mantienes tus credenciales seguras y no las compartes. Reportas cualquier actividad sospechosa.</p>
+                <p><strong>4. Prohibiciones:</strong> Está estrictamente prohibido realizar ataques de red, distribuir malware, acceso no autorizado o cualquier actividad ilegal.</p>
+                <p><strong>5. Privacidad:</strong> El tráfico de red puede ser monitoreado para garantizar el cumplimiento de políticas y seguridad.</p>
+                <p><strong>6. Propiedad Intelectual:</strong> Respeta los derechos de autor y propiedad intelectual en todo momento.</p>
+                <p><strong>7. Consecuencias:</strong> El incumplimiento puede resultar en la suspensión del acceso y acciones disciplinarias.</p>
+            </div>
+            <div style="text-align: center;">
+                <button class="accept-btn" id="accept-terms">Aceptar y Continuar</button>
+            </div>
+        </div>
+    </div>
 
-async function onRegister(e){
-  e.preventDefault();
-  const form = document.getElementById('register');
-  const formData = new URLSearchParams(new FormData(form));
-  const res = await fetch('/register', {method:'POST', body: formData.toString(), headers:{'Content-Type':'application/x-www-form-urlencoded'}});
-  const txt = await res.text();
-  if (res.status === 201) {
-    document.getElementById('reg-msg').innerText = 'Cuenta creada. Puedes iniciar sesión.';
-  } else {
-    document.getElementById('reg-msg').innerText = 'Error creando cuenta: ' + txt;
-  }
-}
-</script>
+    <!-- Modal de Registro -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="close-register">×</button>
+            <h2>✨ Crear Cuenta</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="reg-username">Nombre de Usuario</label>
+                    <input type="text" id="reg-username" name="username" placeholder="usuario123" required style="padding: 14px 18px;">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Contraseña</label>
+                    <input type="password" id="reg-password" name="password" placeholder="Mínimo 8 caracteres" required style="padding: 14px 18px;">
+                </div>
+                <div class="form-group">
+                    <label for="reg-confirm">Confirmar Contraseña</label>
+                    <input type="password" id="reg-confirm" name="confirm" placeholder="Repite tu contraseña" required style="padding: 14px 18px;">
+                </div>
+                <button type="submit" class="login-btn" id="register-btn" style="margin-top: 20px;">Crear Cuenta</button>
+            </form>
+            <div class="status-indicator" id="register-status" style="display: none; margin-top: 20px;">
+                <div class="status-dot"></div>
+                <span id="register-status-text">Procesando...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Crear partículas animadas
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 250; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + 'vh';
+
+            const duration = Math.random() * 15 + 10;
+            const delay = Math.random() * 20;
+
+            particle.style.animationDuration = duration + 's';
+            particle.style.animationDelay = delay + 's';
+
+            particlesContainer.appendChild(particle);
+        }
+
+
+        // Obtener IP del cliente
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('current-ip').textContent = data.ip || 'No disponible';
+            })
+            .catch(() => {
+                document.getElementById('current-ip').textContent = '⚠️ Error';
+            });
+
+        // Toggle mostrar/ocultar contraseña
+        const togglePassword = document.getElementById('toggle-password');
+        const passwordInput = document.getElementById('password');
+        
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+
+        // Modal de términos
+        const termsLink = document.getElementById('terms-link');
+        const termsModal = document.getElementById('terms-modal');
+        const closeTerms = document.getElementById('close-terms');
+        const acceptTerms = document.getElementById('accept-terms');
+        const termsCheckbox = document.getElementById('terms');
+        
+        termsLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            termsModal.style.display = 'flex';
+        });
+        
+        closeTerms.addEventListener('click', function() {
+            termsModal.style.display = 'none';
+        });
+        
+        acceptTerms.addEventListener('click', function() {
+            termsCheckbox.checked = true;
+            termsModal.style.display = 'none';
+        });
+        
+        termsModal.addEventListener('click', function(e) {
+            if (e.target === termsModal) {
+                termsModal.style.display = 'none';
+            }
+        });
+
+        // Modal de registro
+        const registerLink = document.getElementById('register-link');
+        const registerModal = document.getElementById('register-modal');
+        const closeRegister = document.getElementById('close-register');
+        
+        registerLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            registerModal.style.display = 'flex';
+        });
+        
+        closeRegister.addEventListener('click', function() {
+            registerModal.style.display = 'none';
+        });
+        
+        registerModal.addEventListener('click', function(e) {
+            if (e.target === registerModal) {
+                registerModal.style.display = 'none';
+            }
+        });
+
+        // Formulario de login
+        const loginForm = document.getElementById('login-form');
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const termsAccepted = document.getElementById('terms').checked;
+            
+            if (!termsAccepted) {
+                alert('⚠️ Debes aceptar los términos y condiciones');
+                return;
+            }
+            
+            statusIndicator.style.display = 'flex';
+            statusText.textContent = 'Autenticando...';
+            document.getElementById('login-btn').disabled = true;
+            
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected || response.status === 303) {
+                    window.location.href = '/success';
+                } else if (response.status === 401) {
+                    throw new Error('❌ Credenciales incorrectas');
+                } else if (!response.ok) {
+                    throw new Error('⚠️ Error del servidor');
+                }
+            })
+            .catch(error => {
+                statusText.textContent = error.message;
+                statusIndicator.style.background = '#fee2e2';
+                statusIndicator.style.color = '#dc2626';
+                statusIndicator.style.borderColor = '#fecaca';
+                document.querySelector('#status-indicator .status-dot').style.background = '#dc2626';
+                
+                setTimeout(() => {
+                    statusIndicator.style.display = 'none';
+                    document.getElementById('login-btn').disabled = false;
+                    statusIndicator.style.background = '#eff6ff';
+                    statusIndicator.style.color = '#1e40af';
+                    statusIndicator.style.borderColor = '#dbeafe';
+                    document.querySelector('#status-indicator .status-dot').style.background = '#3b82f6';
+                }, 3000);
+            });
+        });
+
+        // Formulario de registro
+        const registerForm = document.getElementById('register-form');
+        const registerStatus = document.getElementById('register-status');
+        const registerStatusText = document.getElementById('register-status-text');
+        
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+            
+            if (password !== confirm) {
+                alert('⚠️ Las contraseñas no coinciden');
+                return;
+            }
+            
+            if (password.length < 8) {
+                alert('⚠️ La contraseña debe tener al menos 8 caracteres');
+                return;
+            }
+            
+            registerStatus.style.display = 'flex';
+            registerStatusText.textContent = 'Creando cuenta...';
+            document.getElementById('register-btn').disabled = true;
+            
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.status === 201) {
+                    registerStatusText.textContent = '✅ ¡Cuenta creada exitosamente!';
+                    registerStatus.style.background = '#d1fae5';
+                    registerStatus.style.color = '#065f46';
+                    registerStatus.style.borderColor = '#a7f3d0';
+                    document.querySelector('#register-status .status-dot').style.background = '#10b981';
+                    
+                    setTimeout(() => {
+                        registerModal.style.display = 'none';
+                        registerStatus.style.display = 'none';
+                        document.getElementById('register-btn').disabled = false;
+                        registerForm.reset();
+                        document.getElementById('username').value = username;
+                        alert('✅ ¡Registro exitoso! Ahora puedes iniciar sesión.');
+                    }, 2000);
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(text || 'Error en el registro');
+                    });
+                }
+            })
+            .catch(error => {
+                registerStatusText.textContent = '❌ ' + error.message;
+                registerStatus.style.background = '#fee2e2';
+                registerStatus.style.color = '#dc2626';
+                registerStatus.style.borderColor = '#fecaca';
+                document.querySelector('#register-status .status-dot').style.background = '#dc2626';
+                
+                setTimeout(() => {
+                    registerStatus.style.display = 'none';
+                    document.getElementById('register-btn').disabled = false;
+                }, 3000);
+            });
+        });
+
+        // Verificar si ya está autenticado
+        window.addEventListener('load', function() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.allowed) {
+                        window.location.href = '/success';
+                    }
+                })
+                .catch(() => {});
+        });
+    </script>
 </body>
 </html>
